@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slice | Budget Your Way</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent-green: #22c55e;
+            --accent-purple: #a855f7;
+            --accent-blue: #3b82f6;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 450px;
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 24px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        h1 { text-align: center; font-size: 1.5rem; margin-bottom: 5px; color: var(--accent-green); letter-spacing: 1px; }
+        p.subtitle { text-align: center; color: var(--text-dim); font-size: 0.9rem; margin-bottom: 25px; }
+
+        .input-group { margin-bottom: 18px; }
+        label { display: block; margin-bottom: 6px; font-weight: 600; color: var(--text-dim); font-size: 0.85rem; }
+        
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 12px;
+            border: 2px solid #334155;
+            background: #0f172a;
+            color: white;
+            font-size: 1rem;
+            box-sizing: border-box;
+            outline: none;
+        }
+
+        input:focus { border-color: var(--accent-blue); }
+
+        .btn-split {
+            width: 100%;
+            padding: 15px;
+            background: var(--accent-green);
+            border: none;
+            border-radius: 12px;
+            color: #052e16;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.1s;
+            margin-top: 10px;
+        }
+
+        .btn-split:active { transform: scale(0.98); }
+
+        .results-area { margin-top: 30px; display: grid; gap: 15px; }
+
+        .bucket {
+            padding: 15px;
+            border-radius: 16px;
+            background: #334155;
+            position: relative;
+        }
+
+        .bucket h3 { margin: 0; font-size: 0.75rem; text-transform: uppercase; color: var(--text-dim); letter-spacing: 0.5px; }
+        .bucket .amount { font-size: 1.5rem; font-weight: 800; margin: 5px 0; }
+        
+        /* Goal Progress Styling */
+        .progress-container {
+            background: #0f172a;
+            height: 12px;
+            border-radius: 10px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        #progressBar {
+            background: var(--accent-blue);
+            width: 0%;
+            height: 100%;
+            transition: width 0.8s ease-out;
+        }
+
+        .daily-box {
+            background: var(--accent-purple);
+            color: white;
+            padding: 20px;
+            border-radius: 16px;
+            text-align: center;
+            margin-top: 10px;
+        }
+        .daily-box span { display: block; font-size: 2rem; font-weight: 900; }
+
+        .disclaimer { font-size: 0.65rem; color: var(--text-dim); margin-top: 25px; text-align: center; line-height: 1.4; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <h1>SLICE</h1>
+    <p class="subtitle">Manual budgeting for the next generation.</p>
+
+    <div class="input-group">
+        <label>Paycheck Amount ($)</label>
+        <input type="number" id="payAmount" placeholder="0.00" step="0.01">
+    </div>
+
+    <div class="input-group">
+        <label>Life Stage</label>
+        <select id="lifeStage">
+            <option value="launchpad">Launchpad (16-22: Living at Home)</option>
+            <option value="bridge">Bridge (22-26: Roommates/Entry Job)</option>
+            <option value="independence">Independence (26-30: Full Bills)</option>
+        </select>
+    </div>
+
+    <div class="input-group" style="border-top: 1px solid #334155; padding-top: 15px;">
+        <label>Saving For? (Goal Name)</label>
+        <input type="text" id="goalName" placeholder="e.g. New Car or PC">
+    </div>
+
+    <div class="input-group">
+        <label>Goal Price ($)</label>
+        <input type="number" id="goalTarget" placeholder="e.g. 1500">
+    </div>
+
+    <button class="btn-split" onclick="calculateSplit()">SPLIT MY CHECK</button>
+
+    <div id="results" class="results-area" style="display: none;">
+        <div class="bucket" style="border-left: 5px solid var(--accent-blue);">
+            <h3>Musts (Needs)</h3>
+            <div class="amount" id="mustsDisplay">$0.00</div>
+        </div>
+
+        <div class="bucket" style="border-left: 5px solid var(--accent-green);">
+            <h3>Future You (Savings)</h3>
+            <div class="amount" id="savingsDisplay">$0.00</div>
+            
+            <div id="goalVisual" style="display:none; margin-top: 15px;">
+                <h3 id="goalTitleDisplay" style="font-size: 0.65rem;">PROGRESS</h3>
+                <div class="progress-container">
+                    <div id="progressBar"></div>
+                </div>
+                <p id="goalStatus" style="font-size: 0.7rem; color: var(--text-main); margin: 0;"></p>
+            </div>
+        </div>
+
+        <div class="daily-box">
+            <p>Daily Spending Allowance</p>
+            <span id="dailyDisplay">$0.00</span>
+        </div>
+    </div>
+
+    <p class="disclaimer">
+        Disclaimer: This tool provides general suggestions. It is for educational use and does not constitute professional financial advice.
+    </p>
+</div>
+
+<script>
+    function calculateSplit() {
+        const amount = parseFloat(document.getElementById('payAmount').value);
+        const stage = document.getElementById('lifeStage').value;
+        const gName = document.getElementById('goalName').value;
+        const gTarget = parseFloat(document.getElementById('goalTarget').value);
+
+        if (isNaN(amount) || amount <= 0) {
+            alert("Enter your paycheck amount first!");
+            return;
+        }
+
+        // Logic Percentages
+        let pMusts, pWants, pSavings;
+        if (stage === 'launchpad') { pMusts = 0.20; pWants = 0.30; pSavings = 0.50; }
+        else if (stage === 'bridge') { pMusts = 0.40; pWants = 0.30; pSavings = 0.30; }
+        else { pMusts = 0.50; pWants = 0.30; pSavings = 0.20; }
+
+        const musts = (amount * pMusts).toFixed(2);
+        const wants = (amount * pWants).toFixed(2);
+        const savings = (amount * pSavings).toFixed(2);
+        const daily = (wants / 7).toFixed(2);
+
+        // UI Updates
+        document.getElementById('mustsDisplay').innerText = `$${musts}`;
+        document.getElementById('savingsDisplay').innerText = `$${savings}`;
+        document.getElementById('dailyDisplay').innerText = `$${daily}`;
+        document.getElementById('results').style.display = 'grid';
+
+        // Goal Tracker Logic
+        const goalSection = document.getElementById('goalVisual');
+        if (gName && !isNaN(gTarget) && gTarget > 0) {
+            goalSection.style.display = 'block';
+            document.getElementById('goalTitleDisplay').innerText = gName.toUpperCase();
+            
+            let percent = (parseFloat(savings) / gTarget) * 100;
+            if (percent > 100) percent = 100;
+
+            document.getElementById('progressBar').style.width = percent + "%";
+            document.getElementById('goalStatus').innerText = 
+                `This check covers ${percent.toFixed(1)}% of your goal!`;
+        } else {
+            goalSection.style.display = 'none';
+        }
+
+        // Save State
+        localStorage.setItem('sliceSettings', JSON.stringify({ amount, stage, gName, gTarget }));
+    }
+
+    window.onload = () => {
+        const saved = localStorage.getItem('sliceSettings');
+        if (saved) {
+            const data = JSON.parse(saved);
+            document.getElementById('payAmount').value = data.amount;
+            document.getElementById('lifeStage').value = data.stage;
+            document.getElementById('goalName').value = data.gName || "";
+            document.getElementById('goalTarget').value = data.gTarget || "";
+        }
+    }
+</script>
+
+</body>
+</html>
