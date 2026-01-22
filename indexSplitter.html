@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slice | Ultimate Tracker</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent-green: #22c55e;
+            --accent-purple: #a855f7;
+            --accent-blue: #3b82f6;
+            --accent-red: #ef4444;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0; display: flex; justify-content: center; padding: 20px;
+        }
+
+        .app-container {
+            width: 100%; max-width: 480px; background: var(--card-bg);
+            padding: 25px; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        h1 { text-align: center; font-size: 1.8rem; margin: 0; color: var(--accent-green); letter-spacing: 2px; }
+        p.subtitle { text-align: center; color: var(--text-dim); font-size: 0.8rem; margin-bottom: 20px; }
+
+        .vault-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .vault { background: var(--accent-purple); padding: 15px; border-radius: 16px; text-align: center; }
+        .spent-vault { background: #334155; padding: 15px; border-radius: 16px; text-align: center; border: 1px solid var(--text-dim); }
+        .vault-amount { font-size: 1.5rem; font-weight: 900; }
+
+        .section-label { font-size: 0.7rem; font-weight: bold; color: var(--accent-blue); text-transform: uppercase; margin: 15px 0 8px 0; display: block; }
+
+        input, select {
+            width: 100%; padding: 12px; border-radius: 12px; border: 2px solid #334155;
+            background: #0f172a; color: white; font-size: 1rem; box-sizing: border-box; outline: none; margin-bottom: 10px;
+        }
+
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+        .btn-green { background: var(--accent-green); color: #052e16; }
+        .btn-blue { background: var(--accent-blue); color: white; }
+        .btn-red { background: var(--accent-red); color: white; }
+
+        .goal-card { background: #0f172a; padding: 15px; border-radius: 12px; margin-top: 10px; border-left: 4px solid var(--accent-blue); }
+        .goal-card.paused { opacity: 0.5; border-left-color: var(--text-dim); }
+        
+        /* THE PERCENT BAR */
+        .progress-container { background: #334155; height: 12px; border-radius: 6px; margin: 10px 0; overflow: hidden; position: relative; }
+        .progress-fill { height: 100%; background: var(--accent-green); width: 0%; transition: width 0.6s cubic-bezier(0.17, 0.67, 0.83, 0.67); }
+        .percent-text { font-size: 0.65rem; font-weight: bold; position: absolute; right: 8px; top: -1px; color: white; line-height: 12px; }
+
+        .goal-actions { display: flex; gap: 5px; margin-top: 10px; }
+        .action-btn { flex: 1; padding: 5px; font-size: 0.65rem; border-radius: 5px; border: 1px solid #334155; background: #1e293b; color: white; cursor: pointer; }
+
+        .warning-msg { color: var(--accent-red); font-weight: bold; text-align: center; font-size: 0.8rem; padding: 15px; border: 2px solid var(--accent-red); border-radius: 10px; margin: 10px 0; display: none; }
+        
+        .history-list { background: #0f172a; border-radius: 12px; padding: 10px; max-height: 120px; overflow-y: auto; font-size: 0.8rem; }
+        .history-item { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #1e293b; }
+
+        .reset-btn { background: none; border: none; color: var(--accent-red); cursor: pointer; font-size: 0.7rem; text-decoration: underline; display: block; margin: 20px auto; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <h1>SLICE</h1>
+    <p class="subtitle">Personal Ledger & Goal Suite</p>
+    
+    <div class="vault-grid">
+        <div class="vault">
+            <div style="font-size: 0.6rem; text-transform: uppercase; opacity: 0.8;">Available Fun</div>
+            <div class="vault-amount" id="vaultDisplay">$0.00</div>
+        </div>
+        <div class="spent-vault">
+            <div style="font-size: 0.6rem; text-transform: uppercase; opacity: 0.8;">Total Spent</div>
+            <div class="vault-amount" id="spentDisplay">$0.00</div>
+        </div>
+    </div>
+
+    <div id="overspendWarning" class="warning-msg">
+        ⚠️ REMEMBER: Only spend your Fun Money! <br>
+        <span style="font-size: 0.7rem; font-weight: normal;">Select a goal to cover this debt:</span>
+        <select id="goalToRob" style="margin-top:10px;"></select>
+        <button class="btn btn-red" style="padding: 8px; font-size: 0.75rem;" onclick="clearDebt()">Cover Debt from Goal</button>
+    </div>
+
+    <span class="section-label">1. Add Income</span>
+    <select id="lifeStage">
+        <option value="launchpad">Launchpad (50% Savings)</option>
+        <option value="bridge">Bridge (30% Savings)</option>
+        <option value="independence">Independence (20% Savings)</option>
+    </select>
+    <input type="number" id="payAmount" placeholder="Paycheck Amount $">
+    <button class="btn btn-green" onclick="addPaycheck()">Split & Deposit</button>
+
+    <span class="section-label">2. Log Spending</span>
+    <input type="text" id="spendName" placeholder="What did you buy?">
+    <input type="number" id="spendAmount" placeholder="Amount $">
+    <button class="btn btn-red" onclick="logExpense()">Subtract from Vault</button>
+
+    <span class="section-label">3. Expense History</span>
+    <div id="historyLog" class="history-list"><div style="color: var(--text-dim); text-align: center;">No history yet.</div></div>
+
+    <span class="section-label">4. Goal Tracker</span>
+    <div id="goalProgressArea"></div>
+    
+    <div style="background: #0f172a; padding: 12px; border-radius: 16px; margin-top: 15px; border: 1px dashed #334155;">
+        <input type="text" id="newGoalName" placeholder="New Goal Name">
+        <input type="number" id="newGoalPrice" placeholder="Goal Price $">
+        <select id="newGoalPriority">
+            <option value="1">Tier 1: High (60% split)</option>
+            <option value="2">Tier 2: Med (30% split)</option>
+            <option value="3">Tier 3: Low (10% split)</option>
+        </select>
+        <button class="btn btn-blue" onclick="addNewGoal()">Create New Goal</button>
+    </div>
+
+    <button class="reset-btn" onclick="if(confirm('Wipe everything?')) { localStorage.clear(); location.reload(); }">Reset All App Data</button>
+</div>
+
+<script>
+    let appData = { vaultBalance: 0, totalSpent: 0, goals: [], history: [] };
+
+    window.onload = () => {
+        const saved = localStorage.getItem('sliceUltimateFinal');
+        if (saved) { appData = JSON.parse(saved); updateUI(); }
+    };
+
+    function save() {
+        localStorage.setItem('sliceUltimateFinal', JSON.stringify(appData));
+        updateUI();
+    }
+
+    function updateUI() {
+        document.getElementById('vaultDisplay').innerText = `$${appData.vaultBalance.toFixed(2)}`;
+        document.getElementById('spentDisplay').innerText = `$${appData.totalSpent.toFixed(2)}`;
+        
+        const goalArea = document.getElementById('goalProgressArea');
+        const robDropdown = document.getElementById('goalToRob');
+        goalArea.innerHTML = ""; robDropdown.innerHTML = "";
+
+        appData.goals.forEach((g, index) => {
+            const rawPercent = (g.saved / g.price) * 100;
+            const displayPercent = Math.min(rawPercent, 100).toFixed(1);
+            
+            goalArea.innerHTML += `
+                <div class="goal-card ${g.paused ? 'paused' : ''}">
+                    <div style="display:flex; justify-content:space-between; font-size: 0.8rem;">
+                        <strong>${g.name} (T${g.priority})</strong>
+                        <span>$${g.saved.toFixed(2)} / $${g.price}</span>
+                    </div>
+                    <div class="progress-container">
+                        <div class="progress-fill" style="width: ${displayPercent}%"></div>
+                        <div class="percent-text">${displayPercent}%</div>
+                    </div>
+                    <div class="goal-actions">
+                        <button class="action-btn" onclick="togglePause(${index})">${g.paused ? 'Unpause' : 'Pause'}</button>
+                        <button class="action-btn" style="color:var(--accent-red)" onclick="deleteGoal(${index})">Remove</button>
+                    </div>
+                </div>`;
+            robDropdown.innerHTML += `<option value="${index}">${g.name} ($${g.saved.toFixed(2)} available)</option>`;
+        });
+
+        const historyArea = document.getElementById('historyLog');
+        if (appData.history.length > 0) {
+            historyArea.innerHTML = appData.history.map(item => 
+                `<div class="history-item"><span>${item.name}</span><span style="color:var(--accent-red)">-$${item.amt.toFixed(2)}</span></div>`
+            ).reverse().join("");
+        }
+
+        document.getElementById('overspendWarning').style.display = appData.vaultBalance < 0 ? 'block' : 'none';
+    }
+
+    function splitMoneyIntoGoals(totalToSplit) {
+        const activeGoals = appData.goals.filter(g => !g.paused);
+        if (activeGoals.length === 0) return;
+
+        const t1 = activeGoals.filter(g => g.priority === 1);
+        const t2 = activeGoals.filter(g => g.priority === 2);
+        const t3 = activeGoals.filter(g => g.priority === 3);
+
+        activeGoals.forEach(g => {
+            let p = 0;
+            if (g.priority === 1) p = (totalToSplit * 0.60) / (t1.length || 1);
+            else if (g.priority === 2) p = (totalToSplit * 0.30) / (t2.length || 1);
+            else if (g.priority === 3) p = (totalToSplit * 0.10) / (t3.length || 1);
+            g.saved += p;
+        });
+    }
+
+    function addPaycheck() {
+        const amt = parseFloat(document.getElementById('payAmount').value);
+        const stage = document.getElementById('lifeStage').value;
+        if (isNaN(amt) || amt <= 0) return;
+
+        let pSavings = (stage === 'launchpad') ? 0.50 : (stage === 'bridge' ? 0.30 : 0.20);
+        appData.vaultBalance += (amt * 0.30);
+        splitMoneyIntoGoals(amt * pSavings);
+
+        document.getElementById('payAmount').value = "";
+        save();
+    }
+
+    function deleteGoal(index) {
+        const goal = appData.goals[index];
+        if (confirm(`Remove "${goal.name}"? Savings ($${goal.saved.toFixed(2)}) will be redistributed.`)) {
+            const refund = goal.saved;
+            appData.goals.splice(index, 1);
+            if (refund > 0) splitMoneyIntoGoals(refund);
+            save();
+        }
+    }
+
+    function togglePause(index) { appData.goals[index].paused = !appData.goals[index].paused; save(); }
+
+    function logExpense() {
+        const name = document.getElementById('spendName').value || "Unnamed Spending";
+        const amt = parseFloat(document.getElementById('spendAmount').value);
+        if (isNaN(amt) || amt <= 0) return;
+
+        appData.vaultBalance -= amt;
+        appData.totalSpent += amt;
+        appData.history.push({ name, amt });
+        document.getElementById('spendName').value = "";
+        document.getElementById('spendAmount').value = "";
+        save();
+    }
+
+    function clearDebt() {
+        const goalIndex = document.getElementById('goalToRob').value;
+        if (appData.goals[goalIndex]) {
+            const debt = Math.abs(appData.vaultBalance);
+            appData.goals[goalIndex].saved -= debt;
+            appData.vaultBalance = 0;
+            save();
+        }
+    }
+
+    function addNewGoal() {
+        const name = document.getElementById('newGoalName').value;
+        const price = parseFloat(document.getElementById('newGoalPrice').value);
+        const priority = parseInt(document.getElementById('newGoalPriority').value);
+        if (name && price > 0) {
+            appData.goals.push({ name, price, priority, saved: 0, paused: false });
+            document.getElementById('newGoalName').value = "";
+            document.getElementById('newGoalPrice').value = "";
+            save();
+        }
+    }
+</script>
+</body>
+</html>
