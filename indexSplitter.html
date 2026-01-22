@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Splitter | Budget Your Way</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent-green: #22c55e;
+            --accent-purple: #a855f7;
+            --accent-blue: #3b82f6;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 450px;
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 24px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        h1 { text-align: center; font-size: 1.5rem; margin-bottom: 5px; }
+        p.subtitle { text-align: center; color: var(--text-dim); font-size: 0.9rem; margin-bottom: 25px; }
+
+        .input-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-dim); }
+        
+        input[type="number"], select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 12px;
+            border: 2px solid #334155;
+            background: #0f172a;
+            color: white;
+            font-size: 1.1rem;
+            box-sizing: border-box;
+        }
+
+        .btn-split {
+            width: 100%;
+            padding: 15px;
+            background: var(--accent-green);
+            border: none;
+            border-radius: 12px;
+            color: #052e16;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        .btn-split:active { transform: scale(0.98); }
+
+        .results-area {
+            margin-top: 30px;
+            display: grid;
+            gap: 15px;
+        }
+
+        .bucket {
+            padding: 15px;
+            border-radius: 16px;
+            background: #334155;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .bucket h3 { margin: 0; font-size: 0.8rem; text-transform: uppercase; color: var(--text-dim); }
+        .bucket .amount { font-size: 1.6rem; font-weight: 800; margin: 5px 0; }
+        
+        .daily-box {
+            background: var(--accent-purple);
+            color: white;
+            padding: 20px;
+            border-radius: 16px;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .daily-box span { display: block; font-size: 2rem; font-weight: 900; }
+
+        .disclaimer {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            margin-top: 25px;
+            text-align: center;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <h1>THE SPLITTER</h1>
+    <p class="subtitle">Personalized budgeting for your life stage.</p>
+
+    <div class="input-group">
+        <label>How much did you make?</label>
+        <input type="number" id="payAmount" placeholder="e.g. 500" step="0.01">
+    </div>
+
+    <div class="input-group">
+        <label>Current Life Stage</label>
+        <select id="lifeStage">
+            <option value="launchpad">Launchpad (16-22: Living at Home)</option>
+            <option value="bridge">Bridge (22-26: Roommates/Entry Job)</option>
+            <option value="independence">Independence (26-30: Full Bills)</option>
+        </select>
+    </div>
+
+    <button class="btn-split" onclick="calculateSplit()">SPLIT MY CHECK</button>
+
+    <div id="results" class="results-area" style="display: none;">
+        <div class="bucket" style="border-left: 5px solid var(--accent-blue);">
+            <h3>Musts (Bills/Transport)</h3>
+            <div class="amount" id="mustsDisplay">$0.00</div>
+        </div>
+
+        <div class="bucket" style="border-left: 5px solid var(--accent-purple);">
+            <h3>Wants (Fun/Hobbies)</h3>
+            <div class="amount" id="wantsDisplay">$0.00</div>
+        </div>
+
+        <div class="bucket" style="border-left: 5px solid var(--accent-green);">
+            <h3>Future You (Savings)</h3>
+            <div class="amount" id="savingsDisplay">$0.00</div>
+        </div>
+
+        <div class="daily-box">
+            <p>Your Daily Allowance (7 Days)</p>
+            <span id="dailyDisplay">$0.00</span>
+        </div>
+    </div>
+
+    <p class="disclaimer">
+        Disclaimer: This tool provides general suggestions based on the 50/30/20 framework. 
+        It is for educational use and does not constitute professional financial advice.
+    </p>
+</div>
+
+<script>
+    function calculateSplit() {
+        const amount = parseFloat(document.getElementById('payAmount').value);
+        const stage = document.getElementById('lifeStage').value;
+
+        if (isNaN(amount) || amount <= 0) {
+            alert("Please enter a valid amount!");
+            return;
+        }
+
+        // Define Percentages based on Life Stage
+        let pMusts, pWants, pSavings;
+
+        if (stage === 'launchpad') {
+            pMusts = 0.20; pWants = 0.30; pSavings = 0.50;
+        } else if (stage === 'bridge') {
+            pMusts = 0.40; pWants = 0.30; pSavings = 0.30;
+        } else {
+            pMusts = 0.50; pWants = 0.30; pSavings = 0.20;
+        }
+
+        // Calculations
+        const musts = (amount * pMusts).toFixed(2);
+        const wants = (amount * pWants).toFixed(2);
+        const savings = (amount * pSavings).toFixed(2);
+        const daily = (wants / 7).toFixed(2);
+
+        // Display Results
+        document.getElementById('mustsDisplay').innerText = `$${musts}`;
+        document.getElementById('wantsDisplay').innerText = `$${wants}`;
+        document.getElementById('savingsDisplay').innerText = `$${savings}`;
+        document.getElementById('dailyDisplay').innerText = `$${daily}`;
+
+        // Show the results area
+        document.getElementById('results').style.display = 'grid';
+
+        // Save to local storage for persistence
+        const userData = { amount, stage, lastSplit: new Date().toLocaleDateString() };
+        localStorage.setItem('splitterData', JSON.stringify(userData));
+    }
+
+    // Check for saved data on load
+    window.onload = () => {
+        const saved = localStorage.getItem('splitterData');
+        if (saved) {
+            const data = JSON.parse(saved);
+            document.getElementById('payAmount').value = data.amount;
+            document.getElementById('lifeStage').value = data.stage;
+        }
+    }
+</script>
+
+</body>
+</html>
