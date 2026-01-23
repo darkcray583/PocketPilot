@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slice | Full Ledger</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent-green: #22c55e;
+            --accent-purple: #a855f7;
+            --accent-blue: #3b82f6;
+            --accent-red: #ef4444;
+            --accent-yellow: #eab308;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0; display: flex; justify-content: center; padding: 20px;
+        }
+
+        .app-container {
+            width: 100%; max-width: 480px; background: var(--card-bg);
+            padding: 25px; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        #toast {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            background: var(--accent-red); color: white; padding: 10px 20px;
+            border-radius: 50px; font-size: 0.8rem; font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4); z-index: 100;
+            display: none; width: 80%; text-align: center;
+        }
+
+        h1 { text-align: center; font-size: 1.8rem; margin: 0; color: var(--accent-green); letter-spacing: 2px; }
+        p.subtitle { text-align: center; color: var(--text-dim); font-size: 0.8rem; margin-bottom: 20px; }
+
+        .vault-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 20px; }
+        .vault { padding: 12px 5px; border-radius: 12px; text-align: center; }
+        .v-fun { background: var(--accent-purple); }
+        .v-essentials { background: var(--accent-yellow); color: #422006; }
+        .v-spent { background: #334155; border: 1px solid var(--text-dim); }
+        .vault-label { font-size: 0.55rem; text-transform: uppercase; font-weight: bold; opacity: 0.9; margin-bottom: 4px; }
+        .vault-amount { font-size: 1.1rem; font-weight: 900; }
+
+        .section-label { font-size: 0.7rem; font-weight: bold; color: var(--accent-blue); text-transform: uppercase; margin: 15px 0 8px 0; display: block; }
+
+        .stage-desc { font-size: 0.7rem; color: var(--text-dim); margin: -5px 0 10px 5px; font-style: italic; }
+
+        input, select {
+            width: 100%; padding: 12px; border-radius: 12px; border: 2px solid #334155;
+            background: #0f172a; color: white; font-size: 1rem; box-sizing: border-box; outline: none; margin-bottom: 10px;
+        }
+
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+        .btn-green { background: var(--accent-green); color: #052e16; }
+        .btn-blue { background: var(--accent-blue); color: white; }
+        .btn-red { background: var(--accent-red); color: white; }
+
+        .goal-card { background: #0f172a; padding: 15px; border-radius: 12px; margin-top: 10px; border-left: 4px solid var(--accent-blue); transition: all 0.3s; }
+        .goal-card.negative-goal { border-left-color: var(--accent-red); border-left-width: 8px; }
+        .goal-card.finished { border-left-color: var(--accent-green); border-left-width: 8px; background: #064e3b; }
+        
+        .progress-container { background: #334155; height: 12px; border-radius: 6px; margin: 10px 0; overflow: hidden; position: relative; }
+        .progress-fill { height: 100%; background: var(--accent-green); width: 0%; transition: width 0.6s; }
+        .progress-fill.negative { background: var(--accent-red); width: 100% !important; }
+        .progress-fill.done { background: var(--accent-green); width: 100% !important; }
+        .percent-text { font-size: 0.65rem; font-weight: bold; position: absolute; right: 8px; top: -1px; color: white; line-height: 12px; }
+
+        .goal-actions { display: flex; gap: 5px; margin-top: 10px; }
+        .action-btn { flex: 1; padding: 5px; font-size: 0.65rem; border-radius: 5px; border: 1px solid #334155; background: #1e293b; color: white; cursor: pointer; }
+
+        .history-container { background: #0f172a; border-radius: 16px; margin-bottom: 15px; padding: 12px; max-height: 200px; overflow-y: auto; border: 1px solid #334155; }
+        .history-item { display: flex; justify-content: space-between; font-size: 0.75rem; padding: 6px 0; border-bottom: 1px solid #1e293b; }
+        .hist-amt { font-weight: bold; }
+        .hist-type-spend { color: var(--accent-red); }
+        .hist-type-goal { color: var(--accent-green); }
+        .hist-type-pay { color: var(--accent-blue); }
+
+        .warning-msg { color: var(--accent-red); font-weight: bold; text-align: center; font-size: 0.8rem; padding: 15px; border: 2px solid var(--accent-red); border-radius: 10px; margin: 10px 0; display: none; }
+        .reset-btn { background: none; border: none; color: var(--accent-red); cursor: pointer; font-size: 0.7rem; text-decoration: underline; display: block; margin: 20px auto; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div id="toast">⚠️ Essentials empty! Pulled from Fun Money.</div>
+    
+    <h1>SLICE</h1>
+    <p class="subtitle">Personal Ledger & Recovery</p>
+    
+    <div class="vault-grid">
+        <div class="vault v-fun">
+            <div class="vault-label">Fun Money</div>
+            <div class="vault-amount" id="vaultDisplay">$0.00</div>
+        </div>
+        <div class="vault v-essentials">
+            <div class="vault-label">Essentials</div>
+            <div class="vault-amount" id="essentialDisplay">$0.00</div>
+        </div>
+        <div class="vault v-spent">
+            <div class="vault-label">Total Spent</div>
+            <div class="vault-amount" id="spentDisplay">$0.00</div>
+        </div>
+    </div>
+
+    <div id="overspendWarning" class="warning-msg">
+        ⚠️ OVERSPENT FUN MONEY! <br>
+        <select id="goalToRob" style="margin-top:10px;"></select>
+        <button class="btn btn-red" style="padding: 8px; font-size: 0.75rem;" onclick="clearDebt()">Cover from Goal</button>
+    </div>
+
+    <span class="section-label">1. Income Split</span>
+    <select id="lifeStage" onchange="updateStageDesc()">
+        <option value="launchpad">Launchpad</option>
+        <option value="bridge">Bridge</option>
+        <option value="independence">Independence</option>
+    </select>
+    <div id="stageDescription" class="stage-desc">Focus: Living with parents/minimal bills. (20% Ess / 50% Save)</div>
+    
+    <input type="number" id="payAmount" placeholder="Paycheck Amount $">
+    <button class="btn btn-green" onclick="addPaycheck()">Deposit Paycheck</button>
+
+    <span class="section-label">2. Log Spending</span>
+    <select id="spendCategory">
+        <option value="fun">Fun Money</option>
+        <option value="essential">Essentials</option>
+    </select>
+    <input type="text" id="spendName" placeholder="Item Name">
+    <input type="number" id="spendAmount" placeholder="Amount $">
+    <button class="btn btn-red" onclick="logExpense()">Log Expense</button>
+
+    <span class="section-label">Activity & History</span>
+    <div class="history-container" id="historyList"></div>
+    <button class="reset-btn" style="margin-top: 0; margin-bottom: 10px;" onclick="if(confirm('Clear history?')) { appData.history = []; save(); }">Clear History Only</button>
+
+    <span class="section-label">3. Manual Correction</span>
+    <div style="display:flex; gap:5px;">
+        <input type="number" id="manualAmt" placeholder="Amount $">
+        <select id="manualDest" style="flex:1;">
+            <option value="vaultBalance">Fun Vault</option>
+            <option value="essentialBalance">Essentials</option>
+        </select>
+    </div>
+    <button class="btn btn-blue" style="padding:10px;" onclick="manualFix()">Add to Vault Manually</button>
+
+    <span class="section-label">4. Goal Tracker</span>
+    <div id="goalProgressArea"></div>
+    
+    <div style="background: #0f172a; padding: 12px; border-radius: 16px; margin-top: 15px; border: 1px dashed #334155;">
+        <input type="text" id="newGoalName" placeholder="New Goal Name">
+        <input type="number" id="newGoalPrice" placeholder="Goal Price $">
+        <select id="newGoalPriority">
+            <option value="1">Tier 1: High (60%)</option>
+            <option value="2">Tier 2: Med (30%)</option>
+            <option value="3">Tier 3: Low (10%)</option>
+        </select>
+        <button class="btn btn-blue" onclick="addNewGoal()">Create New Goal</button>
+    </div>
+
+    <button class="reset-btn" onclick="if(confirm('Wipe everything?')) { localStorage.clear(); location.reload(); }">Reset All Data</button>
+</div>
+
+<script>
+    let appData = { vaultBalance: 0, essentialBalance: 0, totalSpent: 0, goals: [], history: [] };
+
+    window.onload = () => {
+        const saved = localStorage.getItem('sliceSafetyV1');
+        if (saved) { 
+            appData = JSON.parse(saved); 
+            if (!appData.history) appData.history = [];
+            updateUI(); 
+        }
+        updateStageDesc();
+    };
+
+    function updateStageDesc() {
+        const stage = document.getElementById('lifeStage').value;
+        const desc = document.getElementById('stageDescription');
+        if (stage === 'launchpad') desc.innerText = "Focus: Living with parents/minimal bills. (20% Ess / 50% Save)";
+        else if (stage === 'bridge') desc.innerText = "Focus: Moving out/increasing overhead. (40% Ess / 30% Save)";
+        else desc.innerText = "Focus: Fully independent/rent & bills. (50% Ess / 20% Save)";
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        if(msg) t.innerText = msg;
+        t.style.display = 'block';
+        setTimeout(() => { t.style.display = 'none'; }, 3000);
+    }
+
+    function save() {
+        localStorage.setItem('sliceSafetyV1', JSON.stringify(appData));
+        updateUI();
+    }
+
+    function updateUI() {
+        document.getElementById('vaultDisplay').innerText = `$${appData.vaultBalance.toFixed(2)}`;
+        document.getElementById('essentialDisplay').innerText = `$${appData.essentialBalance.toFixed(2)}`;
+        document.getElementById('spentDisplay').innerText = `$${appData.totalSpent.toFixed(2)}`;
+        
+        const goalArea = document.getElementById('goalProgressArea');
+        const robDropdown = document.getElementById('goalToRob');
+        const historyArea = document.getElementById('historyList');
+        
+        goalArea.innerHTML = ""; robDropdown.innerHTML = ""; historyArea.innerHTML = "";
+
+        appData.goals.forEach((g, index) => {
+            const isNegative = g.saved < 0;
+            const isFinished = g.saved >= g.price && !isNegative;
+            const displayPercent = isNegative ? 100 : Math.min((g.saved / g.price) * 100, 100).toFixed(1);
+
+            goalArea.innerHTML += `
+                <div class="goal-card ${g.paused && !isNegative ? 'paused' : ''} ${isNegative ? 'negative-goal' : ''} ${isFinished ? 'finished' : ''}">
+                    <div style="display:flex; justify-content:space-between; font-size: 0.8rem;">
+                        <strong>${isNegative ? '⚠️ ' : (isFinished ? '✅ ' : '')}${g.name}</strong>
+                        <span style="${isNegative ? 'color:var(--accent-red); font-weight:bold' : ''}">
+                            $${g.saved.toFixed(2)} / $${g.price}
+                        </span>
+                    </div>
+                    <div class="progress-container">
+                        <div class="progress-fill ${isNegative ? 'negative' : (isFinished ? 'done' : '')}" style="width: ${displayPercent}%"></div>
+                        <div class="percent-text">${isNegative ? 'FORCED RECOVERY' : (isFinished ? 'READY' : displayPercent + '%')}</div>
+                    </div>
+                    <div class="goal-actions">
+                        ${isFinished ? `<button class="action-btn" style="background:var(--accent-green); color:black;" onclick="completePurchase(${index})">Buy Now</button>` : ''}
+                        ${!isFinished && !isNegative ? `<button class="action-btn" onclick="togglePause(${index})">${g.paused ? 'Unpause' : 'Pause'}</button>` : ''}
+                        <button class="action-btn" style="color:var(--accent-red)" onclick="deleteGoal(${index})">Remove</button>
+                    </div>
+                </div>`;
+            robDropdown.innerHTML += `<option value="${index}">${g.name} ($${g.saved.toFixed(2)})</option>`;
+        });
+
+        const reversedHistory = [...appData.history].reverse();
+        reversedHistory.forEach(item => {
+            historyArea.innerHTML += `
+                <div class="history-item">
+                    <span>${item.date} | ${item.name}</span>
+                    <span class="hist-amt ${item.type === 'pay' ? 'hist-type-pay' : (item.type === 'goal' ? 'hist-type-goal' : 'hist-type-spend')}">
+                        ${item.type === 'pay' ? '+' : '-'}$${item.amt.toFixed(2)}
+                    </span>
+                </div>`;
+        });
+
+        document.getElementById('overspendWarning').style.display = appData.vaultBalance < 0 ? 'block' : 'none';
+    }
+
+    function addHistory(name, amt, type) {
+        const date = new Date().toLocaleDateString([], { month: 'short', day: 'numeric' });
+        appData.history.push({ name, amt, type, date });
+    }
+
+    function manualFix() {
+        const amt = parseFloat(document.getElementById('manualAmt').value);
+        const dest = document.getElementById('manualDest').value;
+        if (!isNaN(amt)) {
+            appData[dest] += amt;
+            addHistory("Manual Correction", amt, "pay");
+            document.getElementById('manualAmt').value = "";
+            save();
+        }
+    }
+
+    function splitMoneyIntoGoals(totalToSplit) {
+        let remaining = totalToSplit;
+        const negativeGoals = appData.goals.filter(g => g.saved < 0);
+        negativeGoals.forEach(g => {
+            if (remaining <= 0) return;
+            const debt = Math.abs(g.saved);
+            const cover = Math.min(remaining, debt);
+            g.saved += cover;
+            remaining -= cover;
+        });
+
+        if (remaining <= 0) return;
+        const activeGoals = appData.goals.filter(g => !g.paused && g.saved < g.price);
+        if (activeGoals.length === 0) {
+            appData.essentialBalance += (remaining * 0.5);
+            appData.vaultBalance += (remaining * 0.5);
+            return;
+        }
+
+        const t1 = activeGoals.filter(g => g.priority === 1);
+        const t2 = activeGoals.filter(g => g.priority === 2);
+        const t3 = activeGoals.filter(g => g.priority === 3);
+
+        activeGoals.forEach(g => {
+            let p = 0;
+            if (g.priority === 1) p = (remaining * 0.60) / (t1.length || 1);
+            else if (g.priority === 2) p = (remaining * 0.30) / (t2.length || 1);
+            else if (g.priority === 3) p = (remaining * 0.10) / (t3.length || 1);
+            g.saved += p;
+        });
+    }
+
+    function addPaycheck() {
+        const amt = parseFloat(document.getElementById('payAmount').value);
+        const stage = document.getElementById('lifeStage').value;
+        if (isNaN(amt) || amt <= 0) return;
+
+        let pEss = 0.50, pSav = 0.20; 
+        if (stage === 'launchpad') { pEss = 0.20; pSav = 0.50; }
+        else if (stage === 'bridge') { pEss = 0.40; pSav = 0.30; }
+
+        appData.essentialBalance += (amt * pEss);
+        splitMoneyIntoGoals(amt * pSav);
+        appData.vaultBalance += (amt * 0.30); 
+        
+        addHistory(`Paycheck (${stage})`, amt, "pay");
+        document.getElementById('payAmount').value = "";
+        save();
+    }
+
+    function logExpense() {
+        const name = document.getElementById('spendName').value || "Expense";
+        const amt = parseFloat(document.getElementById('spendAmount').value);
+        const cat = document.getElementById('spendCategory').value;
+        if (!isNaN(amt) && amt > 0) {
+            if (cat === 'fun') {
+                appData.vaultBalance -= amt;
+            } else {
+                if (amt > appData.essentialBalance) {
+                    const diff = amt - appData.essentialBalance;
+                    appData.essentialBalance = 0;
+                    appData.vaultBalance -= diff;
+                    showToast("⚠️ Essentials empty! Pulled from Fun Money.");
+                } else {
+                    appData.essentialBalance -= amt;
+                }
+            }
+            appData.totalSpent += amt;
+            addHistory(name, amt, "spend");
+            document.getElementById('spendName').value = "";
+            document.getElementById('spendAmount').value = "";
+            save();
+        }
+    }
+
+    function completePurchase(index) {
+        const goal = appData.goals[index];
+        if (confirm(`Purchase ${goal.name}?`)) {
+            appData.totalSpent += goal.price;
+            addHistory(`Goal: ${goal.name}`, goal.price, "goal");
+            const overflow = goal.saved - goal.price;
+            appData.goals.splice(index, 1);
+            if (overflow > 0) appData.vaultBalance += overflow;
+            save();
+        }
+    }
+
+    function deleteGoal(index) {
+        const refund = appData.goals[index].saved;
+        if (confirm(`Remove goal? $${refund.toFixed(2)} will be returned.`)) {
+            appData.goals.splice(index, 1);
+            if (refund > 0) {
+                if (appData.goals.length > 0) splitMoneyIntoGoals(refund);
+                else {
+                    appData.essentialBalance += (refund * 0.5);
+                    appData.vaultBalance += (refund * 0.5);
+                }
+            }
+            save();
+        }
+    }
+
+    function togglePause(index) { appData.goals[index].paused = !appData.goals[index].paused; save(); }
+    
+    function clearDebt() {
+        const goalIndex = document.getElementById('goalToRob').value;
+        const debt = Math.abs(appData.vaultBalance);
+        appData.goals[goalIndex].saved -= debt;
+        appData.vaultBalance = 0;
+        addHistory("Debt Covered by Goal", debt, "spend");
+        save();
+    }
+
+    function addNewGoal() {
+        const name = document.getElementById('newGoalName').value.trim();
+        const price = parseFloat(document.getElementById('newGoalPrice').value);
+        const priority = parseInt(document.getElementById('newGoalPriority').value);
+
+        if (!name || isNaN(price) || price <= 0) return;
+
+        const exists = appData.goals.some(g => g.name.toLowerCase() === name.toLowerCase());
+        
+        if (exists) {
+            showToast("⚠️ A goal with this name already exists!");
+            return;
+        }
+
+        appData.goals.push({ name, price, priority, saved: 0, paused: false });
+        document.getElementById('newGoalName').value = "";
+        document.getElementById('newGoalPrice').value = "";
+        save();
+    }
+</script>
+</body>
+</html>
